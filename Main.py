@@ -5,7 +5,7 @@ import matplotlib as mt
 import math
 from sklearn import linear_model
 
-ds = pd.read_csv("train.csv")
+ds = pd.read_csv("https://raw.githubusercontent.com/Impossiblu/HousingPricesPrediction/master/train.csv")
 f = []
 #print(ds.SalePrice)
 #print(ds.YearBuilt)
