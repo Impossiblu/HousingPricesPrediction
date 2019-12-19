@@ -1,8 +1,3 @@
-"""
-Version 1.02
-- Created By Arif with help from
-https://www.youtube.com/watch?v=J_LnPL3Qg70
-"""
 import pandas as pd
 import math
 from sklearn import linear_model
@@ -14,6 +9,7 @@ def FormatQual(column):
   column = column.replace("Fa", value="2")
   column = column.replace("Po", value="1")
   column = column.replace("NA", value="0")
+  column = column.replace("nan", value="0")
   return column
 
 def FormatSlope(column):
@@ -27,33 +23,42 @@ def FormatYesNo(column):
   column = column.replace("N", value="0")
   return column
 
+quantVars = ['OverallQual','FullBath','BedroomAbvGr','KitchenAbvGr','TotRmsAbvGrd','Fireplaces'] # values are a number or null
+qualVars = ['ExterQual','PoolQC'] # values are Ex Gd TA Fa Po or null
+yesNoVars = ['CentralAir'] # values are Y or N
+otherVars = ['LandSlope'] # values dont follow a pattern and will be formatted seperatly
+
+totalVars = quantVars + qualVars + yesNoVars + otherVars
+totalVarString = "" #used for fit and predict function
+for var in totalVars:# adding every var to a string of vars
+  exec("totalVarString += \"'"+var+"',\"")
+totalVarString = totalVarString[:-1] # removes last comma
 
 ds = pd.read_csv("https://raw.githubusercontent.com/Impossiblu/HousingPricesPrediction/master/train.csv") #Reads the training data from the csv file and allocates it to a dataframe called ds
 #### Following code changes qualatative columns into quantitative
 
-ds.ExterQual = FormatQual(ds.ExterQual)
-ds.LandSlope = FormatSlope(ds.LandSlope)
-ds.CentralAir = FormatYesNo(ds.CentralAir)
+def FormatData(dataset):
+  for quant in quantVars: # fills all quant null vars with median
+    exec(dataset+"." + quant + " = "+dataset+"." + quant + ".fillna(math.floor("+dataset+"." + quant + ".median()))")
 
+  for qual in qualVars: # changes all qual values to numbers and fills in nulls
+    exec(dataset+"."+qual+" = FormatQual("+dataset+"."+qual+")")
+    exec(dataset+"."+qual+" = "+dataset+"."+qual+".fillna('0')")
 
+  for yesNo in yesNoVars: # changes all yes no answers to 1's and 0's
+    exec(dataset+"."+yesNo+" = FormatYesNo("+dataset+"."+yesNo+")")
+    exec(dataset+"."+yesNo+" = "+dataset+"."+yesNo+".fillna('0')")
+
+  #other vars formatting
+  exec(dataset+".LandSlope = FormatSlope("+dataset+".LandSlope)")
+
+FormatData('ds')
 
 Final_Dict = {'SalePrice': []} # Final dictionary to append to then be used to construct dataframe
-#####Following makes median values so that it does not affect the prediction if there is a missing piece of information
-MedianOverallQual = math.floor(ds.OverallQual.median())
-MedianOverallCond = math.floor(ds.OverallCond.median())
-MedianYearBuilt = math.floor(ds.YearBuilt.median())
-MedianYrSold = math.floor(ds.YrSold.median())
-
-####Following code replaces the N/A or null values
-ds.OverallQual.fillna(MedianOverallQual)
-ds.OverallCond.fillna(MedianOverallCond)
-ds.YearBuilt.fillna(MedianYearBuilt)
-ds.YrSold.fillna(MedianYrSold)
-
 
 reg = linear_model.LinearRegression() #assigns the model to the variable linear regression "least squares model"
 
-reg.fit(ds[['OverallQual','ExterQual','LandSlope','CentralAir','FullBath','BedroomAbvGr','KitchenAbvGr','TotRmsAbvGrd','Fireplaces']], ds.SalePrice)
+exec("reg.fit(ds[["+totalVarString+"]], ds.SalePrice)")
 
 #print("the coefficients are ", reg.coef_)
 #print("The y intercept is ", reg.intercept_)
@@ -64,11 +69,9 @@ test_df = pd.read_csv("https://raw.githubusercontent.com/Impossiblu/HousingPrice
 
 final_df = pd.DataFrame()
 
-test_df.ExterQual = FormatQual(test_df.ExterQual)
-test_df.LandSlope = FormatSlope(test_df.LandSlope)
-test_df.CentralAir = FormatYesNo(test_df.CentralAir)
+FormatData('test_df')
 
-final_df['SalePrice'] = reg.predict(test_df[['OverallQual','ExterQual','LandSlope','CentralAir','FullBath','BedroomAbvGr','KitchenAbvGr','TotRmsAbvGrd','Fireplaces']]).astype(int).tolist()
+exec("final_df['SalePrice'] = reg.predict(test_df[["+totalVarString+"]]).astype(int).tolist()")
 #above line creates the predictions of all the values within the test_dataframe(test_df)
 final_df = final_df.set_index(test_df['Id'])
 #Dataframes come with their own ID's that start from 0, our test set started from a custom figure so setting that
