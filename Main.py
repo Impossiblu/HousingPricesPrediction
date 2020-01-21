@@ -8,8 +8,8 @@ def FormatQual(column):
   column = column.replace("TA", value="3")
   column = column.replace("Fa", value="2")
   column = column.replace("Po", value="1")
-  column = column.replace("NA", value="0")
-  column = column.replace("nan", value="0")
+  #column = column.replace("NA", value="0")
+  #column = column.replace("nan", value="0")
   return column
 
 def FormatSlope(column):
@@ -20,22 +20,26 @@ def FormatSlope(column):
 
 def FormatYesNo(column):
   column = column.replace("Y", value="1")
+  column = column.replace("P", value="0.5")#partial
   column = column.replace("N", value="0")
   return column
 
-quantVars = ['OverallQual','FullBath','BedroomAbvGr','KitchenAbvGr','TotRmsAbvGrd','Fireplaces'] # values are a number or null
-qualVars = ['ExterQual','PoolQC'] # values are Ex Gd TA Fa Po or null
-yesNoVars = ['CentralAir'] # values are Y or N
+ds = pd.read_csv("https://raw.githubusercontent.com/Impossiblu/HousingPricesPrediction/master/train.csv") #Reads the training data from the csv file and allocates it to a dataframe called ds
+
+
+quantVars = ['OverallQual','FullBath','BedroomAbvGr','KitchenAbvGr','TotRmsAbvGrd','Fireplaces','YearRemodAdd','GarageCars','YrSold','GrLivArea'] # values are a number or null
+qualVars = ['ExterQual','HeatingQC','KitchenQual','GarageQual','ExterCond'] # values are Ex Gd TA Fa Po or null
+yesNoVars = ['CentralAir','PavedDrive'] # values are Y or N
+yesNoNumberVars = [] # values are 0/null for N or number if Y # DISABLED AS IT HAD A NEGATIVE IMPACT ON RESULTS
 otherVars = ['LandSlope'] # values dont follow a pattern and will be formatted seperatly
 
-totalVars = quantVars + qualVars + yesNoVars + otherVars
+removeRowsWithNull = [] #any houses that have a null value for attributes in this array will be removed from calculations
+
+totalVars = quantVars + qualVars + yesNoVars + yesNoNumberVars + otherVars
 totalVarString = "" #used for fit and predict function
 for var in totalVars:# adding every var to a string of vars
   exec("totalVarString += \"'"+var+"',\"")
 totalVarString = totalVarString[:-1] # removes last comma
-
-ds = pd.read_csv("https://raw.githubusercontent.com/Impossiblu/HousingPricesPrediction/master/train.csv") #Reads the training data from the csv file and allocates it to a dataframe called ds
-#### Following code changes qualatative columns into quantitative
 
 def FormatData(dataset):
   for quant in quantVars: # fills all quant null vars with median
@@ -49,10 +53,25 @@ def FormatData(dataset):
     exec(dataset+"."+yesNo+" = FormatYesNo("+dataset+"."+yesNo+")")
     exec(dataset+"."+yesNo+" = "+dataset+"."+yesNo+".fillna('0')")
 
+  for yesNoNumber in yesNoNumberVars: # turns all number values to 1 if Y
+    exec(dataset+"."+yesNoNumber+" = "+dataset+"."+yesNoNumber+".fillna('0')")
+    exec(dataset+".loc["+dataset+"."+yesNoNumber+" !='0', '"+yesNoNumber+"'] = 1")
+
   #other vars formatting
   exec(dataset+".LandSlope = FormatSlope("+dataset+".LandSlope)")
 
 FormatData('ds')
+
+#removes all values with null values in certain columns
+for column in removeRowsWithNull:
+  exec("ds = ds[pd.notnull(ds['" + column + "'])]")
+
+#Removes all houses with an abnormal sale condition
+indexNames = ds[ ds['SaleCondition'] == "Abnorml" ].index
+ds.drop(indexNames , inplace=True)
+
+#shows the data set
+display(ds)
 
 Final_Dict = {'SalePrice': []} # Final dictionary to append to then be used to construct dataframe
 
