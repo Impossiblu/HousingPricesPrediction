@@ -42,22 +42,22 @@ def graphp(parameter1):
     
     
     
+ # def graphl(parameter1):
     
-def graphl(parameter1):
+  #  print(" ")
+  #  print ("this is the graph for linear regration:" ,parameter1)
     
-    print(" ")
-    print ("this is the graph for linear regration:" ,parameter1)
+   
+  # X=data[parameter1].values.reshape(1, -1)
+  # Y=data['SalePrice'].values.reshape(1, -1)
     
-    X=data[parameter1].values.reshape(1, -1)
-    Y=data['SalePrice'].values.reshape(1, -1)
+  # linear_regressor = LinearRegression()  # create object for the class
+  #linear_regressor.fit(X, Y)  # perform linear regression
+  #Y_pred = linear_regressor.predict(X)  # make predictions
     
-    linear_regressor = LinearRegression()  # create object for the class
-    linear_regressor.fit(X, Y)  # perform linear regression
-    Y_pred = linear_regressor.predict(X)  # make predictions
-    
-    plt.scatter(X, Y)
-    plt.plot(X, Y_pred, color='red')
-    plt.show()
+   #plt.scatter(X, Y)
+   #plt.plot(X, Y_pred, color='red')
+   #plt.show()
 
    
     
