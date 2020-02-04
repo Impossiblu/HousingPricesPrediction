@@ -5,7 +5,7 @@ removeRowsWithNull = [] #any houses that have a null value for attributes in thi
 #Placed here since I'm not sure how this is populated
 #The only other place where this is refered to is reading values from it - Laurence
 
-quantVars = ['OverallQual','FullBath','BedroomAbvGr','KitchenAbvGr','TotRmsAbvGrd','Fireplaces','YearRemodAdd','GarageCars','YrSold','GrLivArea'] # values are a number or null
+quantVars = ['OverallQual','FullBath','BedroomAbvGr','KitchenAbvGr','TotRmsAbvGrd','Fireplaces','YearRemodAdd','GarageCars','YrSold','GrLivArea','GarageArea','TotalBsmtSF'] # values are a number or null
 qualVars = ['ExterQual','HeatingQC','KitchenQual','GarageQual','ExterCond'] # values are Ex Gd TA Fa Po or null
 yesNoVars = ['CentralAir','PavedDrive'] # values are Y or N
 yesNoNumberVars = [] # values are 0/null for N or number if Y # DISABLED AS IT HAD A NEGATIVE IMPACT ON RESULTS
