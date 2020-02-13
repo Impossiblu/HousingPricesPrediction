@@ -1,47 +1,108 @@
 """
-Version 1.01
+Version 1.45
 - Created By Arif with help from
 https://www.youtube.com/watch?v=J_LnPL3Qg70
+https://www.kaggle.com/erick5/predicting-house-prices-with-machine-learning
+https://www.youtube.com/watch?v=YKP31T5LIXQ
 
 """
 import pandas as pd
-import math
-from sklearn import linear_model
+import seaborn as sns
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.linear_model import LinearRegression
+from scipy import stats
+from sklearn.pipeline import make_pipeline
+from scipy.stats import norm
+from warnings import simplefilter
+from sklearn.preprocessing import scale
+from datetime import datetime
+from sklearn.model_selection import train_test_split
+from sklearn import ensemble
 
-ds = pd.read_csv("train.csv") #Reads the training data from the csv file and allocates it to a dataframe called ds
-
-Final_Dict = {'SalePrice': []} # Final dictionary to append to then be used to construct dataframe
-#####Following makes median values so that it does not affect the prediction if there is a missing piece of information
-MedianOverallQual = math.floor(ds.OverallQual.median())
-MedianOverallCond = math.floor(ds.OverallCond.median())
-MedianYearBuilt = math.floor(ds.YearBuilt.median())
-MedianYrSold = math.floor(ds.YrSold.median())
-
-####Following code replaces the N/A or null values
-ds.OverallQual.fillna(MedianOverallQual)
-ds.OverallCond.fillna(MedianOverallCond)
-ds.YearBuilt.fillna(MedianYearBuilt)
-ds.YrSold.fillna(MedianYrSold)
+# ignore all future warnings
+simplefilter(action='ignore', category=FutureWarning)
 
 
-reg = linear_model.LinearRegression() #assigns the model to the variable linear regression "least squares model"
+def PrepareFile(finalPrediction,IDs):
+    print(type(finalPrediction))
+    finalPrediction = np.expm1(finalPrediction)
+    final_df = pd.DataFrame(finalPrediction)
+    final_df.columns = ["SalePrice"]
+    final_df = final_df.set_index(IDs)
+    print(final_df.head())
+    final_df.to_csv(path_or_buf="Submission.csv", index=True)
 
-reg.fit(ds[['OverallQual', 'OverallCond', 'YearBuilt', 'YrSold']], ds.SalePrice)
+#def TrainModel(trainData):
 
-#print("the coefficients are ", reg.coef_)
-#print("The y intercept is ", reg.intercept_)
-#print(" the equation is :")
-#print("y = {:.2f}x + {:.2f}z + {:.2f}t + {:.2f}I ".format(reg.coef_[0],reg.coef_[1],reg.coef_[2],reg.coef_[3]))
-####Above code lets me view the equation of the line for debugging.
-test_df = pd.read_csv("test.csv")
+DSTrain = pd.read_csv("train.csv") #Reads the training data from the csv file and allocates it to a dataframe called dsTrain
+DSTest = pd.read_csv("test.csv") #Reads the testing data from the csv file and allocates it to the Dataframe called DSTEST
 
-final_df = pd.DataFrame()
-final_df['SalePrice'] = reg.predict(test_df[['OverallQual', 'OverallCond', 'YearBuilt', 'YrSold']]).astype(int).tolist()
-#above line creates the predictions of all the values within the test_dataframe(test_df)
-final_df = final_df.set_index(test_df['Id'])
-#Dataframes come with their own ID's that start from 0, our test set started from a custom figure so setting that
-#Value from the Test_df was key to ensuring the submition was made correctly.
-print(final_df.head())
-final_df.to_csv(path_or_buf="submission.csv", index=True)
+TrainID = DSTrain['Id'] #Save the IDS for both dataframes for the output later on
+TestID = DSTest['Id']
+
+DSTrain.drop("Id",axis = 1, inplace = True) # Drop the ID columns due to them being irrelevant
+DSTest.drop("Id",axis = 1, inplace = True)
+
+def NormalisationAnalysis(Df1):
+    try:
+
+
+        sns.distplot(Df1["SalePrice"], fit=norm)
+
+        mean, stdDeviation = norm.fit(Df1["SalePrice"])
+        print("Standard Deviation:{:.2f} Mean:{:.2f}".format(stdDeviation,mean))
+        plt.legend(['Normal dist. {:.2f} and {:.2f}'.format(mean,stdDeviation)], loc='best')
+        plt.ylabel("Frequency")
+        plt.title("SalePrice distribution")
+
+        fig = plt.figure()
+        res = stats.probplot(Df1['SalePrice'], plot=plt)
+        plt.show()
+
+        print("Skewness: "+ Df1['SalePrice'].skew())# skew shows if more of the data is 'behind' the mean or infront of it with a negative or positive skew,
+        # this can be seen with the bell curve being on a specific side
+        print("Kurtosis: "+ Df1['SalePrice'].kurt()) # Kurtosis is a measurement of "tailedness" High kurtosis means lots of outliers and heavy tails and low means other
+    except Exception as e:
+        print("Analysis incorrect as :"+ e)
+        pass
+
+
+def Normalise(DF, Display = True):
+    DF['SalePrice'] = np.log1p(DF["SalePrice"])
+    if Display:
+        sns.distplot(DF['SalePrice'] , fit=norm)
+
+        # Get the fitted parameters used by the function
+        mean, stdDeviation = norm.fit(DF["SalePrice"])
+
+        print("Standard Deviation:{:.2f} Mean:{:.2f}".format(stdDeviation, mean))
+        plt.legend(['Normal dist. {:.2f} and {:.2f}'.format(mean, stdDeviation)], loc='best')
+        plt.ylabel('Frequency')
+        plt.title('SalePrice distribution')
+
+        fig = plt.figure()
+        res = stats.probplot(DF['SalePrice'], plot=plt)
+        plt.show()
+
+
+
+        print("Skewness: {:.2f}".format(DF['SalePrice'].skew()))
+        print("Kurtosis: {:.2f}".format(DF['SalePrice'].kurt()))
+        print(DF.describe())
+    return DF
+
+def BuildModel(TrainDataset):
+
+    TrainDataset = Normalise(TrainDataset, Display = False)
+    regr = ensemble.BaggingRegressor(base_estimator=LinearRegression(), n_estimators=5, bootstrap=True)
+    #ensemble bagging regressor using linear model, bootstrap entails that when values are taken they arent replaced
+    regr.fit(TrainDataset[['OverallQual', 'OverallCond']], TrainDataset.SalePrice)
+    return regr
+
+
+PrepareFile(BuildModel(Normalise(DSTrain, Display=False)).predict(DSTest[['OverallQual', 'OverallCond']]), TestID)
+
+
 
 
