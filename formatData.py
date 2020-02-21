@@ -1,16 +1,29 @@
 import pandas as pd
 import numpy as np
 
+#The following lists contain all variables in the dataset, excluding Id and SalePrice
+"""
+quantVars = ['LotFrontage', 'LotArea', 'OverallQual', 'OverallCond', 'MasVnrArea', 'BsmtFinSF1', 'BsmtFinSF2', 'BsmtUnfSF', 'TotalBsmtSF', '1stFlrSF', '2ndFlrSF', 'LowQualFinSF', 'GrLivArea', 'BsmtFullBath', 'BsmtHalfBath', 'FullBath', 'HalfBath', 'BedroomAbvGr', 'KitchenAbvGr', 'TotRmsAbvGrd', 'Fireplaces', 'GarageCars', 'GarageArea', 'WoodDeckSF', 'OpenPorchSF', 'EnclosedPorch', '3SsnPorch', 'PoolArea', 'MiscVal', 'YearBuilt', 'YearRemodAdd', 'GarageYrBlt', 'MoSold', 'YrSold']
+qualOrdinalVars = ['ExterQual', 'ExterCond', 'BsmtQual', 'BsmtCond', 'HeatingQC', 'KitchenQual', 'FireplaceQu', 'GarageQual', 'GarageCond', 'PoolQC', 'Functional', 'Fence', 'BsmtExposure']
+qualNominalVars = ['MSSubClass', 'MSZoning', 'Street', 'Alley', 'LotShape', 'LandContour', 'Utilities', 'LotConfig', 'LandSlope', 'Neighborhood', 'Condition1', 'Condition2', 'BldgType', 'HouseStyle', 'RoofStyle', 'RoofMatl', 'Exterior1st', 'Exterior2nd', 'MasVnrType', 'Foundation', 'BsmtFinType1', 'BsmtFinType2', 'Heating', 'CentralAir', 'Electrical', 'GarageType', 'GarageFinish', 'PavedDrive', 'MiscFeature', 'SaleType', 'SaleCondition']
+"""
+#These contain only the variables we were using previously
 quantVars = ['OverallQual','FullBath','BedroomAbvGr','KitchenAbvGr','TotRmsAbvGrd','Fireplaces','YearRemodAdd','GarageCars','YrSold','GrLivArea','GarageArea','TotalBsmtSF'] # values are a number or null
-qualVars = ['ExterQual','HeatingQC','KitchenQual','GarageQual','ExterCond'] # values are Ex Gd TA Fa Po or null
-yesNoVars = ['CentralAir','PavedDrive'] # values are Y or N
-yesNoNumberVars = [] # values are 0/null for N or number if Y # DISABLED AS IT HAD A NEGATIVE IMPACT ON RESULTS
-otherVars = ['LandSlope'] # values dont follow a pattern and will be formatted seperatly
+#Categorical values where categories have some kind of order (e.g. Excellent, Good, etc.)
+qualOrdinalVars = ['ExterQual','HeatingQC','KitchenQual','GarageQual','ExterCond']
+#Categorical values with no order
+qualNominalVars = ['CentralAir','PavedDrive', 'LandSlope']
 
-totalVars = quantVars + qualVars + yesNoVars + yesNoNumberVars + otherVars
-
-def GetTotalVars():
+def GetTotalVars(dataset):
+    dummyCols = []
+    for col in dataset.columns:
+        for i in qualNominalVars:
+            if (i in col):
+                dummyCols += [col]
+    
+    totalVars = quantVars + qualOrdinalVars + dummyCols
     return totalVars
+
 
 def FormatNulls(dataset):
     #List of columns where null values indicate 'None'
@@ -38,50 +51,45 @@ def FormatNulls(dataset):
     
     return dataset
 
-def FormatQual(column):
-    column = column.replace("Ex", value="5")
-    column = column.replace("Gd", value="4")
-    column = column.replace("TA", value="3")
-    column = column.replace("Fa", value="2")
-    column = column.replace("Po", value="1")
-    column = column.replace("None", value="0")
-    return column
+def FormatOrdinals(dataset, col):
+    if (col == 'Functional'):
+        return dataset[col].map({'Typ': 8, 'Min1': 7, 'Min2': 6, 'Mod': 5, 'Maj1': 4, 'Maj2': 3, 'Sev': 2, 'Sal':1 })
+    elif (col == 'Fence'):
+        return dataset[col].map({'GdPrv': 4, 'GdWo': 3, 'MnPrv': 2, 'MnWw': 1, 'None': 0})
+    elif (col == "BsmtExposure"):
+        return dataset[col].map({'Gd': 4, 'Av': 3, 'Mn': 2, 'No': 1, 'None': 0})
+    else:
+        return dataset[col].map({'Ex': 5, 'Gd': 4, 'TA': 3, 'Fa': 2, 'Po': 1, 'None': 0})
 
-def FormatSlope(column):
-    column = column.replace("Gtl", value="3")
-    column = column.replace("Mod", value="2")
-    column = column.replace("Sev", value="1")
-    return column
+def FormatNominals(dataset, col):
+    return pd.get_dummies(dataset, prefix=col, columns=[col])
 
-def FormatYesNo(column):
-    column = column.replace("Y", value="1")
-    column = column.replace("P", value="0.5")#partial
-    column = column.replace("N", value="0")
-    return column
+def FillMissingDummies(train, test):
+    colList = list(train.columns) + list(test.columns)
+    colList.remove('SalePrice')
+    
+    for col in colList:
+        if col not in list(train.columns):
+            train[col]=0
+            
+        if col not in list(test.columns):
+            test[col]=0
+    
+    return train, test
 
 def FormatData(dataset, removeAbnormals=False):
+    #Should always be done first
     dataset = FormatNulls(dataset)
-    
-    for qual in qualVars: # changes all qual values to numbers and fills in nulls
-        dataset[qual] = FormatQual(dataset[qual])
-        dataset[qual] = dataset[qual].fillna('0')
-
-    for yesNo in yesNoVars: # changes all yes no answers to 1's and 0's
-        dataset[yesNo] = FormatYesNo(dataset[yesNo])
-        dataset[yesNo] = dataset[yesNo].fillna('0')
-    
-    for yesNoNumber in yesNoNumberVars: # turns all number values to 1 if Y
-        dataset[yesNoNumber] = dataset[yesNoNumber].fillna('0')
-        dataset.loc[dataset[yesNoNumber] !='0', 'yesNoNumber'] = 1
-    
-    #other vars formatting
-    dataset['LandSlope'] = FormatSlope(dataset['LandSlope'])
     
     if removeAbnormals == True: #Remove houses with abnormal sale condiditon
         indexNames = dataset[dataset['SaleCondition'] == "Abnorml" ].index
         dataset.drop(indexNames, inplace=True)
+
+    #Should always be done last
+    for col in qualOrdinalVars:
+        dataset[col] = FormatOrdinals(dataset, col)
         
-        #shows the data set 
-        display(dataset)
-  
+    for col in qualNominalVars:
+        dataset = FormatNominals(dataset, col)
+        
     return dataset
