@@ -27,16 +27,18 @@ simplefilter(action='ignore', category=FutureWarning)
 def PrepareFile(finalPrediction,IDs):
     print(type(finalPrediction))
     finalPrediction = np.expm1(finalPrediction)
+    print(finalPrediction)
     final_df = pd.DataFrame(finalPrediction)
     final_df.columns = ["SalePrice"]
     final_df = final_df.set_index(IDs)
+    print("Submission Details")
     print(final_df.head())
     final_df.to_csv(path_or_buf="Submission.csv", index=True)
 
 #def TrainModel(trainData):
 
-DSTrain = pd.read_csv("train.csv") #Reads the training data from the csv file and allocates it to a dataframe called dsTrain
-DSTest = pd.read_csv("test.csv") #Reads the testing data from the csv file and allocates it to the Dataframe called DSTEST
+DSTrain = pd.read_csv("train cleaned 1.csv") #Reads the training data from the csv file and allocates it to a dataframe called dsTrain
+DSTest = pd.read_csv("test modified.csv") #Reads the testing data from the csv file and allocates it to the Dataframe called DSTEST
 
 TrainID = DSTrain['Id'] #Save the IDS for both dataframes for the output later on
 TestID = DSTest['Id']
@@ -96,12 +98,13 @@ def BuildModel(TrainDataset):
 
     TrainDataset = Normalise(TrainDataset, Display = False)
     regr = ensemble.BaggingRegressor(base_estimator=LinearRegression(), n_estimators=5, bootstrap=True)
+
     #ensemble bagging regressor using linear model, bootstrap entails that when values are taken they arent replaced
-    regr.fit(TrainDataset[['OverallQual', 'OverallCond']], TrainDataset.SalePrice)
+    regr.fit(TrainDataset, TrainDataset.SalePrice)
     return regr
 
 
-PrepareFile(BuildModel(Normalise(DSTrain, Display=False)).predict(DSTest[['OverallQual', 'OverallCond']]), TestID)
+PrepareFile(BuildModel(DSTrain).predict(DSTest), TestID)
 
 
 
